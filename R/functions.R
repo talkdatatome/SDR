@@ -96,7 +96,7 @@ function(parmlst, maxRB=0.6, maxiter=5e4) {
 #' Calculates SDR variance estimate based on a given stratum permutation
 #' 
 #' @description
-#' Given weighted y vector
+#' Given weighted y vector and a sparse representation of the non-zero entries of the SDR matrix, and an optional stratum permutation, generate the SDR variance estimate.
 #' 
 #' @param ywt A list of stratum design weighted outcome vectors. Length is equal to number of stratum.
 #' @param Mmat An length(ywt) by 3 matrix representing the non-zero indices of the SDR matrix given a D cycling configuration. Can use output from `Mcalc`.
@@ -317,7 +317,7 @@ VSDRbias <- function(parmlst, permarr) {
 
 #' Computes SDR relbias when n less than or equal to m
 #' 
-#' @description This function computes the relative bias of SDR when $n \\le m$.
+#' @description This function computes the relative bias of SDR when n < m.
 #'
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
 #' @returns A list with relative bias, the true variance, and the original paramter list.

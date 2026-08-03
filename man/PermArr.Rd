@@ -8,7 +8,7 @@
 A matrix with 78 rows and 10 columns. The first column is a subset of possible rows from the Hadamard matrix, defined here as \code{c(2:40, 42:80)}. Each additional column a permutation of the first column.
 }
 \source{
-Supplement S.1 from Slud and Trudell (in preparation).
+Supplement S.1 from Slud and Trudell.
 }
 \usage{
 PermArr

@@ -13,5 +13,5 @@ RelSDRBias(parmlst)
 A list with relative bias, the true variance, and the original paramter list.
 }
 \description{
-This function computes the relative bias of SDR when $n \\le m$.
+This function computes the relative bias of SDR when n < m.
 }

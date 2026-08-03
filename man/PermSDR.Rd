@@ -19,7 +19,7 @@ PermSDR(ywt, Mmat, nhvec, Str.perm = 1:length(nhvec))
 Total estimate under permutation given in Str.perm.
 }
 \description{
-Given weighted y vector
+Given weighted y vector and a sparse representation of the non-zero entries of the SDR matrix, and an optional stratum permutation, generate the SDR variance estimate.
 }
 \examples{
 nh <- c(3,5,7,9)

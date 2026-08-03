@@ -8,7 +8,7 @@
 Similar to \code{PermArr}, a matrix with 78 rows and 10 columns. The first column is a subset of possible rows from the Hadamard matrix. In this case, the first column is \code{1:78}. Each additional column a permutation of the first column.
 }
 \source{
-From Slud and Trudell (in preparation TODO).
+From Slud and Trudell.
 }
 \usage{
 PrmArr0

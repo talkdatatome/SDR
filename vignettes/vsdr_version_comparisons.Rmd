@@ -24,7 +24,7 @@ library(ggplot2)
 
 This vignette demonstrates a basic comparison of the time complexity of the three functions: VSDRbias, VSDR.Gen, and VSDR.exp. The most optimized version is VSDR.Gen which is recommended for real-world use. VDR.exp is the most straightforwardly written but the slowest performer. 
 
-```{r setup2, cache=TRUE}
+```{r setup2}
 H <- 25
 parmlst <- list(
   Nh = rep(1000, H),
@@ -62,7 +62,7 @@ results_df$func <- "VSDRbias"
 results_list[[length(results_list) + 1]] <- results_df
 ```
 
-```{r step2, cache=TRUE}
+```{r step2}
 results_df <- data.frame(n=sapply(nh_seq, sum),
                          time=rep(NA, length=length(nh_seq)),
                          Vtru=rep(NA, length=length(nh_seq)),

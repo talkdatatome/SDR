@@ -1,0 +1,133 @@
+---
+title: "Comparison of VSDRbias, VSDR.Gen, and VSDR.exp"
+author: "Eric Slud and Tim Trudell"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Comparison of VSDRbias, VSDR.Gen, and VSDR.ex}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  fig.width  = 7,
+  fig.asp    = 0.618,
+  out.width  = "90%",
+  fig.align  = "center",
+  dpi        = 150
+)
+
+library(SDR)
+library(ggplot2)
+```
+
+This vignette demonstrates a basic comparison of the time complexity of the three functions: VSDRbias, VSDR.Gen, and VSDR.exp. The most optimized version is VSDR.Gen which is recommended for real-world use. VDR.exp is the most straightforwardly written but the slowest performer. 
+
+```{r setup2, cache=TRUE}
+H <- 25
+parmlst <- list(
+  Nh = rep(1000, H),
+  nh = sample(5:10, H, replace=TRUE),
+  muh = runif(H, min=1, max=10),
+  sigmah = runif(H, min=1, max=2),
+  alphah = runif(H, min=0.05, max=1)
+)
+
+nh_seq <- list(parmlst$nh, parmlst$nh*2, parmlst$nh*3, parmlst$nh*4)
+results_list <- list()
+```
+
+We generate a random parameter list with `r H` strata then increase the sample size to 2, 3, and 4 times the original values.
+
+```{r step1}
+results_df <- data.frame(n=sapply(nh_seq, sum),
+                         time=rep(NA, length=length(nh_seq)),
+                         Vtru=rep(NA, length=length(nh_seq)),
+                         EVSDR=rep(NA, length=length(nh_seq)),
+                         RelBias=rep(NA, length=length(nh_seq)))
+
+for(i in 1:length(nh_seq)){
+  parmlst$nh <- nh_seq[[i]]
+  start_time <- Sys.time()
+  results <- VSDRbias(parmlst, PermArr)
+  end_time <- Sys.time()
+  results_df$time[i] <- end_time - start_time
+  results_df$Vtru[i] <- results$Vtru
+  results_df$EVSDR[i] <- results$EVSDR
+  results_df$RelBias[i] <- results$RelBias
+}
+results_df$func <- "VSDRbias"
+
+results_list[[length(results_list) + 1]] <- results_df
+```
+
+```{r step2, cache=TRUE}
+results_df <- data.frame(n=sapply(nh_seq, sum),
+                         time=rep(NA, length=length(nh_seq)),
+                         Vtru=rep(NA, length=length(nh_seq)),
+                         EVSDR=rep(NA, length=length(nh_seq)),
+                         RelBias=rep(NA, length=length(nh_seq)))
+
+for(i in 1:length(nh_seq)){
+  parmlst$nh <- nh_seq[[i]]
+  start_time <- Sys.time()
+  results <- VSDR.exp(parmlst, PermArr)
+  end_time <- Sys.time()
+  results_df$time[i] <- end_time - start_time
+  results_df$Vtru[i] <- results$Vtru
+  results_df$EVSDR[i] <- results$EVSDR
+  results_df$RelBias[i] <- results$RelBias
+}
+results_df$func <- "VSDR.exp"
+
+results_list[[length(results_list) + 1]] <- results_df
+```
+
+```{r step3}
+results_df <- data.frame(n=sapply(nh_seq, sum),
+                         time=rep(NA, length=length(nh_seq)),
+                         Vtru=rep(NA, length=length(nh_seq)),
+                         EVSDR=rep(NA, length=length(nh_seq)),
+                         RelBias=rep(NA, length=length(nh_seq)))
+
+for(i in 1:length(nh_seq)){
+  parmlst$nh <- nh_seq[[i]]
+  start_time <- Sys.time()
+  results <- VSDR.Gen(parmlst, PermArr)
+  end_time <- Sys.time()
+  results_df$time[i] <- end_time - start_time
+  results_df$Vtru[i] <- results$Vtru
+  results_df$EVSDR[i] <- results$EVSDR
+  results_df$RelBias[i] <- results$RelBias
+}
+results_df$func <- "VSDR.Gen"
+
+results_list[[length(results_list) + 1]] <- results_df
+```
+
+```{r compare}
+results <- do.call(rbind, results_list)
+```
+
+The graph below shows the comparison of the three functions on the same set of parameters. 
+```{r graph, fig.cap="Time versus Total Sample Size by Function"}
+ggplot(results, 
+       aes(x=n, y=time, group=func, shape=func)
+       ) + 
+  geom_point() + 
+  scale_y_log10() + 
+  xlab("Total Sample Size") + 
+  ylab("Time (seconds)")
+```
+
+Finally, we show that the output values are all identical for all three functions.
+```{r table}
+results_to_print <- results[order(results$n, results$func), 
+              c("n", "func", "Vtru", "EVSDR", "RelBias")]
+rownames(results_to_print) <- NULL
+num <- vapply(results_to_print, is.numeric, logical(1))
+results_to_print[num] <- lapply(results_to_print[num], round, digits = 4)
+print(results_to_print)
+```
+

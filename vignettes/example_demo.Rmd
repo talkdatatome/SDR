@@ -1,0 +1,205 @@
+---
+title: "Examples from SDR paper (forthcoming)"
+author: "Eric Slud and Tim Trudell"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SDR_bias_examples}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Examples from paper
+
+The following examples come from (paper reference?) in section 5. Let $p_A = \frac{N_A}{N}$, $n_A = \sum_{h=1}^H n_h \alpha_h$.
+
+## Example (i)
+In example i, we assume that the domain exists in only one stratum, without loss of generality, the first stratum. This yields an upper bound on the relative bias:
+
+$$\mbox{RelBias} \leq \frac{p_A^2}{n_A\sigma_1^2/\mu_1^2}$$
+```{r load_package}
+library(SDR)
+```
+
+```{r prep, echo=FALSE, eval=TRUE}
+set.seed(2020)
+H <- 4
+
+parmlst1 <- list(
+  Nh = rep(1000, H),
+  nh = rep(15, H),
+  muh = c(2, rnorm(H - 1, 9)),
+  sigmah = c(1, sample(c(0.5, 1, 2), H - 1, replace=TRUE)),
+  alphah = c(0.05, rep(0, H-1))
+)
+
+parmlst2 <- list(
+  Nh = rep(1000, H),
+  nh = rep(c(5,15), length=H),
+  muh = rep(10, H),
+  sigmah = rep(1, H),
+  alphah = rep(0.5, H)
+)
+
+parmlst3 <- list(
+  Nh = rep(1000, H),
+  nh = rep(5, length=H),
+  muh = rep(c(1,5), length=H),
+  sigmah = rep(1, H),
+  alphah = rep(0.5, H)
+)
+
+parmlst4_1 <- list(
+  Nh = rep(10000, H),
+  nh = rep(5, length=H),
+  muh = rep(c(1,5), length=H),
+  sigmah = rep(1, H),
+  alphah = rep(0.01, H)
+)
+
+parmlst4_2 <- list(
+  Nh = rep(10000, H),
+  nh = rep(5, length=H),
+  muh = rep(c(1,5), length=H),
+  sigmah = rep(1, H),
+  alphah = rep(0.04, H)
+)
+
+parmlst4_3 <- list(
+  Nh = rep(10000, H),
+  nh = rep(5, length=H),
+  muh = rep(c(1,5), length=H),
+  sigmah = rep(1, H),
+  alphah = rep(0.06, H)
+)
+
+parmlst4_4 <- list(
+  Nh = rep(10000, H),
+  nh = rep(5, length=H),
+  muh = rep(c(1,5), length=H),
+  sigmah = rep(1, H),
+  alphah = rep(0.08, H)
+)
+
+H <- 8
+
+parmlst5 <- list(
+  Nh = rep(1000, H),
+  nh = rep(100, length=H),
+  muh = rep(c(0.5, 1.5), length=H),
+  sigmah = rep(1, H),
+  alphah = rep(c(0.6, 0, 0.8, 0), length=H)
+)
+
+```
+
+We generate a small population of 4 strata 
+```{r example1}
+print(parmlst1)
+
+p_A <- (parmlst1$Nh/sum(parmlst1$Nh))[1]
+n_A <- parmlst1$nh[1]*p_A
+sigma_1 <- parmlst1$sigmah[1]
+mu_1 <- parmlst1$muh[1]
+
+print(SDR::PermRelBias(parmlst1)$RelBias)
+print(p_A^2/(n_A*sigma_1^2/mu_1^2))
+
+```
+We can see that this upper bound can be somewhat large especially as $\alpha_1$ grows.
+
+## Example (ii)
+Here we have $H$ is even and all terms are constant except the sample size values which alternate between two values, $n_h = (n/H) \cdot (1 + (-1)^h \rho)$, where $\rho \in (0, 1)$. We can approximate the relative bias as 
+
+$$H\cdot \frac{p_A^2}{n_A(\sigma_1^2/\mu_1^2 + 1 - p_A)} \left( \frac{2\rho^2}{1-\rho^2} \right)$$
+
+```{r example2}
+print(parmlst2)
+
+rho <- with(parmlst2, (max(nh) - min(nh))* length(nh)/(2*sum(nh)) )
+H <- length(parmlst2$nh)
+p_A <- parmlst2$Nh[1]/sum(parmlst2$Nh)
+n_A <- parmlst2$nh[1]*parmlst2$alphah[1]
+sigma_1 <- parmlst2$sigmah[1]
+mu_1 <- parmlst2$muh[1]
+
+print(SDR::PermRelBias(parmlst2)$RelBias)
+print(H*(p_A^2/(n_A*(sigma_1^2/mu_1^2 + 1 - p_A)) *((2*rho^2)/(1 - rho^2))))
+```
+## Example (iii)
+
+Example iii switches the term that alternates from $n_h$ to $\mu_h$ in a similar alternation between two values. The relative bias is then approximated as 
+
+$$H \cdot \frac{2 \rho^2 p_A^2}{n_A (\sigma_1^2\mu^2 + (1- p_A)*(1+\rho^2))} $$
+
+```{r example3}
+print(parmlst3)
+
+H <- length(parmlst3$nh)
+p_A <- parmlst3$Nh[1]/sum(parmlst3$Nh)
+n_A <- parmlst3$nh[1]*parmlst3$alphah[1]
+sigma_1 <- parmlst3$sigmah[1]
+mu <- sum(parmlst3$muh*parmlst3$Nh)/sum(parmlst3$Nh)
+rho <- with(parmlst3, (max(muh) - min(muh))/(2*mu))
+
+
+print(SDR::PermRelBias(parmlst3)$RelBias)
+print((2*rho^2*p_A^2)/(n_A*(sigma_1^2/mu^2 + (1-p_A)*(1+rho^2))))
+```
+
+## Example (iv)
+Here we explore the approximate linearity of the relative bias under small domains as a function of the small domain size.
+
+```{r example4_1}
+print(parmlst4_1)
+print(parmlst4_2)
+print(parmlst4_3)
+print(parmlst4_4)
+
+print(SDR::PermRelBias(parmlst4_1)$RelBias)
+print(SDR::PermRelBias(parmlst4_2)$RelBias)
+print(SDR::PermRelBias(parmlst4_3)$RelBias)
+print(SDR::PermRelBias(parmlst4_4)$RelBias)
+
+
+X <- data.frame(x=c(parmlst4_1$alphah[1], 
+       parmlst4_2$alphah[1], 
+       parmlst4_3$alphah[1],
+       parmlst4_4$alphah[1]),
+       y= c(SDR::PermRelBias(parmlst4_1)$RelBias,
+     SDR::PermRelBias(parmlst4_2)$RelBias,
+     SDR::PermRelBias(parmlst4_3)$RelBias,
+     SDR::PermRelBias(parmlst4_4)$RelBias))
+plot(X$x,
+     X$y
+     )
+m1 <- lm(data=X, y~x)
+abline(m1)
+
+```
+## Example (v)
+
+In example v, we have a situation where the relative bias will not become arbitrarily small with larger domain size as can be seen below.
+```{r example5}
+print(parmlst5)
+
+H <- length(parmlst5$Nh)
+nh_seq <- c(10, 50, 100)
+
+relbias_ans <- sapply(nh_seq, function(n){
+  parmlst <- parmlst5
+  parmlst$nh <- rep(n, H)
+  
+  SDR::PermRelBias(parmlst)$RelBias
+})
+
+plot(nh_seq, relbias_ans)
+```
+

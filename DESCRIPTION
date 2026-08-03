@@ -1,0 +1,26 @@
+Package: SDR
+Title: Successive Difference Replication Variance Formulas
+Version: 0.9.0
+Authors@R: c(
+    person("Eric", "Slud", , "slud@umd.edu", role = "aut"),
+    person("Tim", "Trudell", , "timtrudell@gmail.com", role = "cre")
+  )
+Author: Eric Slud [aut], Tim Trudell [cre]
+Maintainer: Tim Trudell <timtrudell@gmail.com>
+Description: Provides functions to compute Successive Difference Replication (SDR) variances under stratified simple random sampling. Includes functions for calculation of permuted estimates and for arbitrary choice of D cycling parameter.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 8.0.0
+Imports:
+    combinat,
+    stats
+Depends: 
+    R (>= 4.6),
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+LazyData: true

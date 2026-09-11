@@ -1,13 +1,13 @@
 #' Utility program to calculate the sparse representation of the M matrix
 #'
-#' @description Calculates sparse representation of M matrix for all choices of m, D, and n.
+#' @description Calculates sparse representation of M matrix for all choices of m, D, and n. The prmarr argument of Mcalc uses permutation columns all indexed 1:m, which is why the default is PrmArr0.
 #' 
 #'
 #' @param n Total Sample Size
 #' @param m Number of replicates used
 #' @param D D cycling parameter
 #' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
-#' @returns Returns a matrix with rows consisting of three elements, an index-pair from 1:n along with the entry for M, for all index-pairs with non-zero entries.
+#' @returns Returns a matrix with rows consisting of a vector with 3 entries, an index-pair from 1:n along with the entry for M, as defined in formula 11 of the paper, for all index-pairs with non-zero entries.
 #' @examples
 #' mcalc_out <- Mcalc(200)
 #' Mmat = array(0, dim=c(200, 200))
@@ -97,8 +97,9 @@ function(parmlst, maxRB=0.6, maxiter=5e4) {
 #' 
 #' @description
 #' Given weighted y vector and a sparse representation of the non-zero entries of the SDR matrix, and an optional stratum permutation, generate the SDR variance estimate.
+#' Function uses Mcalc to calculate the correct VSDR estiamte; m, D are not direct arguments; but the M matrix and weighted ywt vector are (not necessarily usning strata SRS weights but there are additional arguments for H-vectors nh and Str.perm, a permutation of the stratum numbers, in case the VSDR evaluation is to be done with a specific input permutation of strata.
 #' 
-#' @param ywt A list of stratum design weighted outcome vectors. Length is equal to number of stratum.
+#' @param ywt A vector of stratum design weighted outcome values. Length is equal to number of stratum.
 #' @param Mmat An length(ywt) by 3 matrix representing the non-zero indices of the SDR matrix given a D cycling configuration. Can use output from `Mcalc`.
 #' @param nhvec vector representing the size of each stratum
 #' @param Str.perm an integer vector that provides the permutation order to use in calculation
@@ -125,15 +126,15 @@ PermSDR <- function(ywt, Mmat, nhvec, Str.perm = 1:length(nhvec)) {
 
 #' Calculates correct variance of VSDR variance-estimate components
 #'
-#' @description For general m, D, and n, calculates coefficients to calculate correct variance for VSDR under simple random sampling from an i.i.d. superpopulation. The coefficients calculated are summed against expressions involving only the first four moments of t he population variables $y_i$. 
+#' @description For general m, D, and n, calculates coefficients to calculate correct variance for VSDR under simple random sampling from an i.i.d. superpopulation having a general mean, variance and 3rd and 4th central moments. The output is not the actual variance but rather (n/N)^4 times a vector Coef of 4 coefficients, respectively, of mu4, mu*mu3, (mu*sig)^2, and mu^4, which add up to the variance. 
 #' 
 #' @param n total sample size
 #' @param m number of replicates used. Defaults to 78 assuming an 80 x 80 Hadamard matrix
 #' @param D D cycling parameter. Defaults to 1.
 #' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
-#' @returns A list with vectors Coef and Trm. TODO
+#' @returns A list with vectors Coef and Trm. The n^2 times variance of the SDR variance estimator is \code{(1/n^2)*Coef[1]*mu4 + Coef[2]*mu3*mu + Coef[3]*(sig*mu)^2+Coef[4]*sig^4}.
 #' @export
-VVsdrEst <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
+VarSDRVar <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
   ### begin by setting n x n Mmat matrix using Mcalc
   Mmat = Mcalc(n, m, D, permarr)
   ## calculate n* variance for SDR-var estimator 
@@ -171,10 +172,10 @@ VVsdrEst <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
   list(Coef=Coef, Trm = Trm) }
 
 #' Function to calculate variance of SDR under stratified SRSWOR.
-#' Written for clarity. If speed for larger n is an issue, use `VSDR.Gen`.
+#' Written for clarity. If speed for larger n is an issue, use `VSDR.Gen`. For the same inputs, matches exactly with `VSDR.Gen` and `VSDRbias`.
 #' 
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
-#' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
+#' @param permarr A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.
 #' @export
 VSDR.exp <- function(parmlst, permarr) {
   ## NOTE parmlst has components in the order "Nh" "nh" "mean" "sig" "alpha"
@@ -216,10 +217,10 @@ VSDR.exp <- function(parmlst, permarr) {
 
 #' Function to calculate variance of SDR under stratified SRSWOR, for larger n.
 #'
-#' @description Preferred for speed. Similar to VSDRbias but is built to run faster for larger n.
+#' @description Preferred for speed. Equivalent to VSDRbias but is built to run faster for larger n. For the same inputs, matches exactly with `VSDR.exp` and `VSDRbias`.
 #' 
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
-#' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
+#' @param permarr A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.
 #' @export
 VSDR.Gen <- function(parmlst, permarr) {
   ## NOTE parmlst has components in the order "Nh" "nh" "mean" "sig" "alpha"
@@ -269,10 +270,10 @@ VSDR.Gen <- function(parmlst, permarr) {
 
 #' Function to calculate correct expectation of the variance of SDR under stratified SRSWOR
 #'
-#' @description Calculates the expected variance of SDR under stratified SRSWOR for all combinations of m, D, and sample size, n.
+#' @description Calculates the expected variance of SDR under stratified SRSWOR for all combinations of m, D, and sample size, n. This version does its own conversion of permarr to have indices 1:m, but is otherwise slow when n is large. For the same inputs, matches exactly with `VSDR.exp` and `VSDR.Gen`.
 #'
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
-#' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
+#' @param permarr A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.
 #' @export
 VSDRbias <- function(parmlst, permarr) {
   ## NOTE parmlst has components "Nh" "nh" "mean" "sig" "alpha"
@@ -317,10 +318,10 @@ VSDRbias <- function(parmlst, permarr) {
 
 #' Computes SDR relbias when n less than or equal to m
 #' 
-#' @description This function computes the relative bias of SDR when n < m.
+#' @description The most basic function implementing the expectation formula in Section 4, applicable to stratified SRS sampling from a stratified iid superpopulation, with n <= m. If used with n > m, corresponds to R >= n, which does not give a valid result even for D==1.
 #'
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
-#' @returns A list with relative bias, the true variance, and the original paramter list.
+#' @returns A list with relative bias, the true variance, and the original parameter list.
 #' @export
 RelSDRBias <- function(parmlst) {   ## the one to use when n <= m
        ## parmlst has components $Nh, $nh, $muh, $sigmah, $alphah
@@ -340,18 +341,21 @@ RelSDRBias <- function(parmlst) {   ## the one to use when n <= m
                      (1+((nh-1)*Nh/(nh^2*(Nh-1))))))/N )/Vtru
           list(RelBias=RelBias, Vtru=Vtru, parmlst=parmlst) }
 
-#' A function that defines a list of G groups assciated with unique gamma-pairs
+#' A function that defines a list of G groups associated with unique gamma-pairs
 #' 
 #' @description Illustrates how different D cycling choices, replicate weight-factor values and sample sizes can lead to different group sizes when cases are grouped by common factor values.
 #' @param n Total Sample Size
 #' @param m Number of replicates used
 #' @param D D cycling parameter
 #' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
-#' @returns An ordered list of groups, ordered by the earliest index in the group from the original sample index order, with each list containing the indicies 1 to n that in that group. 
+#' @returns An ordered list of groups, ordered by the earliest index in the group from the original sample index order, with each list containing the indices 1 to n that in that group. 
 #' @examples
-#' GpCalcT(200, D=3)
+#' x <- GpCalc(78*3, D=3)
+#' print(length(x))
+#' print(x[76:78])
+#' print(x[[length(x)]])
 #' @export
-GpCalcT <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
+GpCalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
      ## Splitting of observations 1:n into unique groups by
      ##   distinct pairs (gamma[j],gamma[j+1])
        gam = if(n<m) c(permarr[1:n,1],permarr[1,1]) else {
@@ -369,8 +373,8 @@ GpCalcT <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
 
 #' Generates random parameter list
 #' 
-#' @description A convenience function to generate somewhat random parmlsts for use in demonstration functions
-#' @returns a parmlst with components ready to use in other functions
+#' @description A convenience function to generate instances of `parmlsts`, defined under `PermRelBias`, for use in demonstration functions
+#' @returns an instance of `parmlst`, which is defined under function `PermRelBias`.
 #' @examples
 #' p <- ParmSim()
 #' print(p)

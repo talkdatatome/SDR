@@ -7,7 +7,7 @@
 PermSDR(ywt, Mmat, nhvec, Str.perm = 1:length(nhvec))
 }
 \arguments{
-\item{ywt}{A list of stratum design weighted outcome vectors. Length is equal to number of stratum.}
+\item{ywt}{A vector of stratum design weighted outcome values. Length is equal to number of stratum.}
 
 \item{Mmat}{An length(ywt) by 3 matrix representing the non-zero indices of the SDR matrix given a D cycling configuration. Can use output from \code{Mcalc}.}
 
@@ -20,6 +20,7 @@ Total estimate under permutation given in Str.perm.
 }
 \description{
 Given weighted y vector and a sparse representation of the non-zero entries of the SDR matrix, and an optional stratum permutation, generate the SDR variance estimate.
+Function uses Mcalc to calculate the correct VSDR estiamte; m, D are not direct arguments; but the M matrix and weighted ywt vector are (not necessarily usning strata SRS weights but there are additional arguments for H-vectors nh and Str.perm, a permutation of the stratum numbers, in case the VSDR evaluation is to be done with a specific input permutation of strata.
 }
 \examples{
 nh <- c(3,5,7,9)

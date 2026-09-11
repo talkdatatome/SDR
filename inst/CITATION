@@ -1,11 +1,18 @@
-bibentry(
-  bibtype = "Article",
+citHeader("To cite this package in publications use:")
+
+citEntry(
+  entry = "Article",
   title = "SDR Variance Estimates in Small Domains",
-  author = "Eric Slud and Tim Trudell",
-  journal = "aXriv",
+  author = personList(
+    as.person("Eric Slud"),
+    as.person("Tim Trudell")
+),
   year = "2026",
-  volume = "",
-  number = "",
-  pages = "",
-  doi = ""
+  journal = "arXiv preprint arXiv:2608.17353",
+  note = "arXiv preprint arXiv:2608.17353",
+  eprint = "2608.17353",
+  archivePrefix = "arXiv",
+  primaryClass = "stat.ME",
+  doi = "10.48550/arXiv.2608.17353",
+  textVersion = "Slud, E., & Trudell, T. (2026). SDR Variance Estimates in Small Domains. arXiv preprint arXiv:2608.17353. https://doi.org/10.48550/arXiv.2608.17353"
 )

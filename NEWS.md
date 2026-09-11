@@ -1,3 +1,3 @@
-# SDR (version 1.0.0)
+# SDR (version 0.9.0)
 
-* Initial CRAN submission.
+* Initial GitHub posting.

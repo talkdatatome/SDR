@@ -1,0 +1,478 @@
+# Updated RLog Documentation for the current Package Functions   7/10/26
+#=======================================================================
+## NB. Orders of arguments changed in a couple of cases, although names 
+##    of functions and arguments are the same as before.
+#-----------------------------------------------------------------------
+
+## RelSDRBias -- the most basic function implementing the expectation formula in Sec.4
+##        applicable to stratSRS sampling of stratified iid superpop, with n <=m
+##    If used with n > m, corresponds to R >= n, which does not 
+##        give valid result even for D=1
+
+## PermRelBias -- also implements the basic formula, but with the feature of 
+##    tabulating results over multiple (all, or random) permutations of strata.
+##    So running this one with maxiter=1 gives the same resukts as RelSDRBias.
+
+### Mcalc -- utility program to calculate the sparse representation of the M matrix
+###   for all m, D, n.
+### NB. At present, the prmarr argument of Mcalc uses permutation columns all 
+###   indexed 1:m, which is why the default is PrmArr0.
+##  The lines of code that transform Permutation arrays (for D-cycling)
+##    not already indexed 1:m (instead skipping 1, 41 to one that IS indexed 1:m is:
+##            newv = c(0,1:39,0,40:78)
+##         PrmArr0 = array( newv[c(PermArr)], c(78,10) )
+##         PrmArB0 = array( newv[c(PermArrB)], c(78,10) )
+##
+## NB2. General purpose code for doing this as part of another function appears in
+##  the VSDRb3 function. The code is:
+##    useinds = sort(permarr[,1])
+##    altvec = numeric(R)
+##    altvec[useinds] = 1:m ## typically altvec = c(0,1:39,0,40:78)
+##    permarr = array(altvec[permarr],c(m,D))
+##  and then the long gamma vector for D-cycling is c(permarr).
+
+### PermSDR -- function uses Mcalc to calculate the correct VSDR estimate; m, D are not
+###   direct arguments; but the M matrix and the weighted  ywt  vector are (not 
+###   necessarily using stratSRS weights. But there are additional argument for H-vectors
+###   nh and Str.perm a permuation of the stratym numbers in case the VSDR evaluation is
+###   to be done with a specific inut permutation of strata.
+
+### GpCalc -- function to define a list of G groups associated with unique gamma-pairs 
+## NB this was corrected 7/18/26 in GpCalcT [see below] 
+##        so that the groups are in original stratum order !!!
+
+### VSDRbias -- function to calculate correct expectation of VSDR under stratSRS 
+###   for all combinations of m, n, D. This version does its own conversion of permarr
+###   to have indices 1:m, but is otherwise slow when n is large.
+
+### VSDR.Gen -- function to do the same as VSDRbias, that also includes conversion 
+###   of permarr to indices 1:m. But this version is supposed to be faster for large n.
+
+### NB. So far there are some discrepancies between results of VSDRbias and VSDR.Gen
+###   therefore need a 3rd version directly using Mcalc to break the tie !!
+
+### VSDR.exp -- function to do the same as VSDRbias, VSDR.Gen  that also includes conversion 
+###   of permarr to indices 1:m. This version is faster than VSDRbias, based on Mcalc,
+###   but is not as fast as VSDR.Gen, which should [pending further checking] be the 
+###   recommended bias-caclulating function for large n.
+
+## NB. Now after correcting a few errors, the current versions of 
+##   VSDRbias and VSDR.Gen and VSDR.exp always agree, and all give the
+##   same answers whether with PermArr vs PrmArr0 or PermArrB vs PrmArB0.
+
+### VarSDRVar -- function to calculate correct variance of VSDR variance-estimate 
+###   for general m, D, n based on SRS sample from iid super-pop with y_i's 
+###   having general mean, variance and 3rd and 4th central moments But the output 
+###   is not the actual variance but rather (n/N)^4 times a vector Coef of 4 
+###   coefficients resp of mu4, mu*mu3, (mu*sig)^2, mu^4 which add up to variance.
+
+#---------------------------- Listings -----------------------------------------------
+
+  RelSDRBias = function(parmlst) {   ## the one to use when n <= m
+       ## parmlst has components $Nh, $nh, $muh, $sigmah, $alphah
+      ## where "alpha" in the formula is  p(A | N_h), h=1,...,H
+    ## This function now modified to reflect new formula (18) in Prop.1 of paper
+          Nh = parmlst[[1]]
+          N = sum(Nh)
+          nh = parmlst[[2]]
+          ph = Nh/N
+          muh = parmlst[[3]]
+          sgsqh = parmlst[[4]]^2
+          alphh = parmlst[[5]]
+          Vtru = sum( (ph^2*alphh/nh)*(1-nh/Nh)*(sgsqh + (1-alphh)*muh^2) )
+          alth = ph*alphh*muh/nh
+          RelBias = ( sum(diff(c(alth,alth[1]))^2)/2 + 
+                 sum(ph*alphh*(sgsqh + (1-alphh)*muh^2*
+                     (1+((nh-1)*Nh/(nh^2*(Nh-1))))))/N )/Vtru
+          list(RelBias=RelBias, Vtru=Vtru, parmlst=parmlst) }
+
+  PermRelBias = function(parmlst, maxRB=0.6, maxiter=5e4) {
+        ## Cover all permutations if H <= 10 and H! <= maxiter, 
+        ##       otherwise sample  maxiter of them.
+      ##  maxRB is the upper-bound of relative-bias, below which we tabulate
+      ##    the fraction of permuted-strata VSDR estimates in equall spaced intervals
+        require(combinat)
+        Nh = parmlst[[1]]
+        N = sum(Nh)
+        nh = parmlst[[2]]
+        H = length(Nh) 
+        ph = Nh/N
+        muh = parmlst[[3]]
+        sgsqh = parmlst[[4]]^2
+        alphh = parmlst[[5]]
+        Vtru = sum( (ph^2*alphh/nh)*(1-nh/Nh)*(sgsqh + (1-alphh)*muh^2) )             
+        alth0 = ph*alphh*muh/nh
+        relBpt2 = sum(ph*alphh*(sgsqh + (1-alphh)*muh^2*
+                 (1+((nh-1)*Nh/(nh^2*(Nh-1))))))/N
+        RelBias = (sum(diff(c(alth0,alth0[1]))^2)/2 + relBpt2)/Vtru
+        nD = sum(alphh*nh)
+      if(H <= 10 & gamma(H+1) <= maxiter ) {
+        tmp = permn(H)
+        RB.num = numeric(gamma(H+1))
+        for (i in 1:gamma(H+1)) {
+            alth = alth0[tmp[[i]]]
+            RB.num[i] = sum(diff(c(alth,alth[1]))^2) }        
+      } else {
+        unifarr = array(runif(maxiter*H), c(maxiter,H))
+        RB.num = numeric(maxiter)
+        for (i in 1:maxiter) {
+            alth = alth0[order(unifarr[i,])]
+            RB.num[i] = sum(diff(c(alth,alth[1]))^2) }        
+      }
+        RB.vec = (RB.num+ 2*relBpt2)/(2*Vtru)
+        countvec = table(cut(RB.vec, breaks=(0:10)*maxRB/10))
+      ## count-tbl tabulated VSDR estimates in equally spaced intervals
+     ##   and the vector of all Relative Biases from permuted strata is RB.vec
+        list(RelBias=RelBias, Vtru=Vtru, count.tbl=countvec, nD=nD, RB.vec=RB.vec) }
+
+  ### NB. This functiion PermRelBias is the only one of the packae functions tht makes
+  ###   use of any package beyond base R. It requires with "combinat" package.
+
+  Mcalc = function(n, m=78, D=1, prmarr=PrmArr0[,1:D]) {
+         ## matrix consisting of all nonzero values j, j', b(j,j')
+       ## for j, j' in 1:n and b(j,j') the curly-bracket value in (16)
+     ## prmarr is m x D matrix of permutations used in D-cycling with D>1
+         ## with each column a permutation of 1:m starting with 1.
+         nrem = n %% (D*m)
+         ncyc = n  %/% (D*m)
+         gam = if(n < m) c(1:n, 1) else { 
+            if(D==1) c(rep(1:m, ncyc), 1:(1+nrem)) else {
+             prmvec = c(prmarr)
+             c(rep(prmvec, ncyc), prmvec[1:(1+nrem)]) }}
+         Mout = NULL
+         for(j in 1:n) for (k in 1:n)  {
+             jv = gam[j:(j+1)]
+             kv = gam[k:(k+1)]           
+             if(length(intersect(jv,kv)))  {
+                a = sum(jv==kv)
+                b = sum(jv==kv[2:1])  
+                mjk = 0.5*(a-b)
+                Mout = rbind(Mout, c(j,k,mjk)) } }
+          Mout  }
+
+ PermSDR = function(ywt, Mmat, nhvec=rep(10,10), Str.perm = 1:length(nhvec)) {                    
+       ### calculates SDR var estimate based on stratum permutation,
+       ##  fixing order of y values within stratum
+     ## NB Assumes ywt values appear in blocks of size nhvec[h]
+     ## Mmat is sparse-matrix representation found in Mcalc
+        H = length(Str.perm)        
+        cumnh = c(0,cumsum(nhvec))
+        ywprm = NULL
+        for(h in 1:H) ywprm = c(ywprm, ywt[cumnh[Str.perm[h]] + 
+               (1:nhvec[Str.perm[h]])])
+     ## now use Mmat to find  ysdr; recall Yest does not use SDR info
+        Ysdr = sum(ywprm[Mmat[,1]]*ywprm[Mmat[,2]]*Mmat[,3])
+        Ysdr   }
+
+  GpCalc = function(n, m=78, D=1, prmarr=PrmArr0[,1:D, drop=F]) {
+     ## potential uniques from m*D (j,j') pairs, 1<= j<= j'<= m*G
+       arrv = c(prmarr, prmarr[1,1])
+       idvals = c(cbind(arrv[-(m*D)],arrv[-1]) %*% runif(2))
+     ## output is a list of index-sets j corresponding to
+     ## G unique (arrv[j],arrv[j+1]) values
+     ##     where  G = length(unique(idvals))
+       split(1:(m*D), factor(idvals)) }
+
+   VSDRbias = function(parmlst, permarr) {
+        ## NOTE parmlst has components "Nh" "nh" "mean" "sig" "alpha"
+        ## permarr is m x D, permarr[1,] constant, & each col a permutation
+      muh = parmlst[[3]]
+      sgsqh = parmlst[[4]]^2
+      alphh = parmlst[[5]]
+      nh = parmlst[[2]]
+      Nh = parmlst[[1]]
+      ph = Nh/sum(Nh)
+      R = max(permarr[,1])
+      m = nrow(permarr)
+      D = ncol(permarr)
+      n = sum(nh)
+      allinds = 1:R
+      useinds = sort(permarr[,1])
+      altvec = numeric(R)
+      altvec[useinds] = 1:m ## typically altvec = c(0,1:39,0,40:78)
+      gamvec = altvec[c(permarr)]
+      gamvec = rep(gamvec, (n+m*D)%/% (m*D))[1:(n+1)]
+      if(n < m) gamvec[n+1]=gamvec[1]
+      H = length(nh)
+      sampvec = rep(1:H, nh) 
+
+     tmp = (muh*alphh*ph/nh)[sampvec]
+     SameStrat = outer(tmp,tmp)
+     cumnh = cumsum(c(0,nh))
+     for(h in 1:H) {
+         indv = (cumnh[h]+1):cumnh[h+1]
+         SameStrat[indv,indv] = alphh[h]*(ph[h]*muh[h]/nh[h])^2*
+                (Nh[h]*alphh[h]-1)/(Nh[h]-1) }
+     SameStrat[cbind(1:n,1:n)] = 0  
+     Mat1 = outer(1:n, 1:n, function(x,y) 
+         0.5*(gamvec[x]==gamvec[y] & x!=y)*(1+(gamvec[x+1]==gamvec[y+1])) -
+         (gamvec[x]==gamvec[y+1]) + 0.5*(gamvec[x+1]==gamvec[y+1])*
+         (gamvec[x]!=gamvec[y]))
+
+     EVSDR = sum( (ph^2/nh)*alphh*(muh^2+sgsqh)) + 
+         sum(c(Mat1*SameStrat))
+     Vtru = sum( (ph^2*alphh/nh)*(1-nh/Nh)*(sgsqh + (1-alphh)*muh^2) )
+     list(Vtru = Vtru, EVSDR=EVSDR, RelBias = EVSDR/Vtru-1) }
+
+   VSDR.Gen = function(parmlst, permarr) {
+        ## NOTE parmlst has components in the order "Nh" "nh" "mean" "sig" "alpha"
+        ## permarr is m x D, permarr[1,] constant, & each col a permutation
+      muh = parmlst[[3]]
+      sgsqh = parmlst[[4]]^2
+      alphh = parmlst[[5]]
+      nh = parmlst[[2]]
+      Nh = parmlst[[1]]
+      ph = Nh/sum(Nh)
+      R = max(permarr[,1])
+      m = nrow(permarr)
+      D = ncol(permarr)
+      n = sum(nh)
+      allinds = 1:R
+      useinds = sort(permarr[,1])
+      altvec = numeric(R)
+      altvec[useinds] = 1:m ## typically altvec = c(0,1:39,0,40  :78)
+      gamvec = altvec[c(permarr[,1:D])]        ## corrected 7/11/26
+      gamvec = rep(gamvec, (n+m*D)%/% (m*D))[1:(n+1)]
+      if(n < m) gamvec[n+1]=gamvec[1]
+      H = length(nh)
+      Vtru = sum( (ph^2*alphh/nh)*(1-nh/Nh)*(sgsqh + (1-alphh)*muh^2) )
+      sampvec = rep(1:H, nh) 
+      mu.alp = muh*alphh*ph/nh
+      EVSDR = sum( (ph^2/nh)*alphh*(muh^2+sgsqh))
+      Sam.h = outer(mu.alp,mu.alp)
+      diag(Sam.h) = alphh*(ph*muh/nh)^2*(Nh*alphh-1)/(Nh-1)
+
+      baslst = split(1:(n+1), factor(gamvec))
+      for(k in 1:min(m,n)) {        ## min(m,n) should = length(baslst)
+       inds = baslst[[k]]
+       indm = setdiff(inds, n+1)
+       indg = setdiff(inds,1)
+       if(length(indm)) {
+          vecm = sampvec[indm] 
+          mat1 = Sam.h[vecm,vecm]*outer(indm,indm, function(x,y) 
+              (x!=y)*(1 + (gamvec[x+1]==gamvec[y+1]))) }  else mat1=0 
+       if(length(indg)) {
+          vecg = sampvec[indg-1]
+          mat3 = Sam.h[vecg,vecg]*outer(indg,indg, function(x,y)
+              gamvec[x-1]!=gamvec[y-1])  }  else mat3=0
+       mat2 = if(min(length(indg),length(indm))) Sam.h[vecm,vecg] else 0
+       EVSDR= EVSDR- sum(c(mat2))+ 0.5*(sum(c(mat1))+sum(c(mat3))) }
+    list(Vtru = Vtru, EVSDR=EVSDR, RelBias = EVSDR/Vtru - 1)  }
+
+
+##============================================================================
+## Final recoding of function VSDR.exp for general m, n, D of expected VSDRhat,
+##   which will correct and replace VSDRb3
+##----------------------------------------------------------------------------
+
+   VSDR.exp = function(parmlst, permarr) {
+        ## NOTE parmlst has components in the order "Nh" "nh" "mean" "sig" "alpha"
+        ## permarr is m x D, permarr[1,] constant, & each col a permutation
+        ##    of same index-set, not necessarily 1:m
+      muh = parmlst[[3]]
+      sgsqh = parmlst[[4]]^2
+      alphh = parmlst[[5]]
+      nh = parmlst[[2]]
+      Nh = parmlst[[1]]
+      ph = Nh/sum(Nh)
+      m = nrow(permarr)
+      D = ncol(permarr)
+      R = max(permarr[,1])
+      n = sum(nh)
+      allinds = 1:R
+      useinds = sort(permarr[,1])
+      altvec = numeric(R)
+      altvec[useinds] = 1:m ## typically altvec = c(0,1:39,0,40  :78)
+      gamvec = altvec[c(permarr[,1:D])]
+      gamvec = rep(gamvec, (n+m*D)%/% (m*D))[1:(n+1)]
+      if(n < m) gamvec[n+1]=gamvec[1]
+      H = length(nh)
+      Vtru = sum( (ph^2*alphh/nh)*(1-nh/Nh)*(sgsqh + (1-alphh)*muh^2) )
+      sampvec = rep(1:H, nh) 
+      EVSDR = sum( (ph^2/nh)*alphh*(muh^2+sgsqh))
+      Mmat = Mcalc(n,m,D,permarr)
+      MmatB = Mmat[ Mmat[,1] < Mmat[,2], ]
+      SameHfac = rep(1,nrow(MmatB))
+    ## indices in first 2 cols are 1:n, convert them to strata
+      strmat = cbind(sampvec[MmatB[,1]],sampvec[MmatB[,2]])
+      ind = which(strmat[,1]==strmat[,2])
+      qh = muh*alphh*ph/nh
+      SameHfac[ind] = SameHfac[ind] * ((Nh-1/alphh)/(Nh-1))[strmat[ind,1]]
+      EVSDR = EVSDR + 2*sum(MmatB[,3]*qh[strmat[,1]]*
+           qh[strmat[,2]]*SameHfac)
+    list(Vtru = Vtru, EVSDR=EVSDR, RelBias = EVSDR/Vtru - 1)  }
+
+  VarSDRVar  =  function(n, m=78, D=1, prmarr=PrmArr0[,1:D, drop=F]) {
+        ### begin by setting n x n Mmat matrix using Mcalc
+       Mmat = Mcalc(n, m, D, prmarr)
+        ## calculate n* variance for SDR-var estimator 
+       ## using wt*y from sample of n scaled by 1/n so that sum(wt)=1
+       Coef = numeric(4)
+       ## coef's apply for D-cycle SDR design respectively to:
+       ##  mu4           4th central moment minus var^2 
+       ##  mu3*mu        3rd central moment times mean
+       ##  sig^2*mu^2     var times mean^2
+       ##  sig^4          var^2
+       Trm = numeric(4)
+       ## coef's calculated (using M_{j,j}=1) in terms of moments of y and
+       ## sums of M_{j,j'}*M_{k,k'} over all j,j'k,k' quadruples of 4 types:
+       ## type 1: j=j'=k=k'
+       ## type 2: 3 indices the same, one different
+       ## type 3: 2 pairs (j,j')(j,j') or (j,j')(j',j), with j != j'
+       ## type 4: 1 pair (j,j')(j,k) or (j,j')(k,j) or (j,j')(j',k) 
+       ##                or (j,j')(k,j')with j,j',k different
+       Trm[1] = n
+       ## Trm[2] = 4*sum of M_{j,j'}   over all j != j'
+       ## Trm[3] = 2*sum of M_{j,j'}^2 over all j != j'
+       ## Trm[4] = 4*sum of M_{j,j'}*M_{j,k} over j,j',k all different
+       ind = which(Mmat[,1]!=Mmat[,2])
+       Mv = Mmat[ind,3]
+       M1 = aggregate(Mmat[,3], by=list(Mmat[,1]), sum)$x
+       Trm[2] = 4*sum(Mv)
+       Trm[3] = 2*sum(Mv^2)
+       Trm[4] = 4*(n - sum(Mv^2) - 2*sum(Mmat[,3]) + sum(M1^2))
+       Coef[1] = Trm[1]
+       Coef[2] = 4*Trm[1] + Trm[2]
+       Coef[3] = 4*Trm[1] + 2*Trm[2] + 2*Trm[3] + Trm[4]
+       Coef[4] = -Trm[1]+Trm[3]
+    ### Final formula for n^2 * Var of SDR var-estimator is (1/n^2)*
+    # Coef[1]*mu4 + Coef[2]*mu3*mu + Coef[3]*(sig*mu)^2+Coef[4]*sig^4
+       list(Coef=Coef, Trm = Trm) }
+
+##=========================================================================
+## Continue with Testing of alternative SDR bias formula functions to confirm
+##  their correspondence.  7/17/26
+## For this, design a simulation to randomly generate parameter lists 
+##  of various sizes H as sample(5:15,1)
+##     Nh = 1e4*sample(5:25, H, replace=T)
+##     nh = sample(2:50, H, replace=T)
+##    muh = rnorm(H)
+##    sigmah = rgamma(H,3,3)
+##    alphah = runif(1, 0.5,0.8)*(0.2+0.8*rbeta(H,1,3))
+## Now simulate 1000 populations like this. For each, calculate Vtru and
+##    SDR Relbias using all of: RelSDRBias, and for D=1,3,10 with all 
+##    of VSDRbias, VSDR.Gen and VSDR.exp, plus 
+##    0.5*sum of (Y^{(g+1)}-Y^{(g)})^2 based on D=1, Mcalc
+##    using both PermArr and PrmArB0
+> names(parmsA)
+[1] "Nh"     "nh"     "muh"    "sigmah" "alphah"
+
+ 
+    ParmSim = function() {
+       H = sample(5:15,1)
+       list(Nh = 1e4*sample(5:25, H, replace=T), 
+         nh = sample(2:25, H, replace=T), 
+         muh = rnorm(H), 
+         sigmah = rgamma(H,3,3),
+         alphah = runif(1, 0.5,0.8)*rbeta(H,1,3)) } 
+
+    set.seed(37821)
+    newv = c(0,1:39,0,40:78)
+    PrmArB0 = array( newv[c(PermArrB)], c(78,10) )
+    OutBas = array(0, c(1000,2), dimnames=list(1:1000, 
+         c("Vtru","Rbias.D1bas")))
+    OutArr = array(0, c(1000,3,3,2), dimnames=list(1:1000, 
+         c("VSDRbias","VSDR.Gen","VSDR.exp"), 
+         paste0("D=",c(1,3,10)), c("PermArr","PrmArB0"))) 
+    for(i in 1:494) {                ### started loop with 1000, completed only 494
+         parm = ParmSim()
+         OutBas[i,1:2] = unlist(RelSDRBias(parm)[2:1])
+         for(k in 1:3) {
+               d = c(1,3,10)[k]             
+               for(b in 1:2) {
+                  prmar = if(b==1) PermArr[,1:d,drop=F] else 
+                     PrmArB0[,1:d,drop=F] 
+               OutArr[i,1,k,b] = VSDRbias(parm,prmar)$RelBias
+               OutArr[i,2,k,b] = VSDR.Gen(parm,prmar)$RelBias
+               OutArr[i,3,k,b] = VSDR.exp(parm,prmar)$RelBias }
+          } }
+
+### about 2 minutes to do 20x3x3x2. Full loop 50 times as long
+
+#---------------------------------------------------------
+## Coherency check among VSDRbias and VSDR.exp:
+    sum(c(abs(OutArr[1:494,1,,]-OutArr[1:494,3,,]) > 1e-12))  ### =  0
+## Coherency check among VSDRbias and VSDR.Gen:
+    sum(c(abs(OutArr[1:494,1,,]-OutArr[1:494,2,,]) > 1e-12))  ### =  0
+
+## Agreement between PermArr and PrmArB0
+## First for D=1:
+    sum(c(abs(OutArr[1:494,1,1,1] - OutArr[1:494,1,1,2]) > 1e-12)) ## = 0
+
+## Agreement between PermArr and PrmArB0 for D=3, 10
+     summary(c(OutArr[1:494,1,2,1] - OutArr[1:494,1,2,2]) ) 
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+-2.161e-02  0.000e+00  0.000e+00 -5.149e-05  0.000e+00  9.517e-03 
+     summary(c(OutArr[1:494,1,3,1] - OutArr[1:494,1,3,2]) ) 
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+-2.161e-02  0.000e+00  0.000e+00 -5.286e-05  0.000e+00  9.517e-03 
+
+## Similarity across D=1 and D=3
+   summary(c(OutArr[1:494,1,1,1] - OutArr[1:494,1,2,1]))
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+-8.962e-03  0.000e+00  0.000e+00  5.186e-05  0.000e+00  2.208e-02 
+
+## Similarity across D=3 and D=10
+   summary(c(OutArr[1:494,1,2,1] - OutArr[1:494,1,3,1]))
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+-1.238e-03  0.000e+00  0.000e+00 -1.319e-06  0.000e+00  6.793e-04 
+
+## Sample sizes in the 494 simulated cases:
+   nsiz.vec = numeric(1000)
+    set.seed(37821)
+   for(i in 1:1000) {
+         parm=ParmSim()
+         nsiz.vec[i] = sum(parm$nh) }
+> summary(nsiz.vec[1:494])
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   35.0    97.0   134.0   134.5   166.0   260.0 
+
+   plot(OutBas[1:494,1], OutArr[1:494,1,1,1]-OutArr[1:494,1,3,1])
+### Shows that all the larger absolute RelBias differences occur
+###   when the Vtru is < 0.01
+
+   plot(nsiz.vec[1:494], OutArr[1:494,1,1,1]-OutArr[1:494,1,3,1])
+### Pictures show that RelBias is <~ 0.01 whenever Vtru >~ 0.01
+
+#--------------- recoding of GpCalc to GpCalcT,   7/18/26
+
+    GpCalcT  =  function(n, m=78, D=1, prmarr=PrmArr0[,1:D, drop=F]) {
+     ## Splitting of observations 1:n into unique groups by
+     ##   distinct pairs (gamma[j],gamma[j+1])
+       gam = if(n<m) c(prmarr[1:n,1],prmarr[1,1]) else {
+            K = (n+D*m-1) %/% (D*m)
+            c(rep(prmarr,K), prmarr[1,1])[1:(n+1)]  }
+     ## length(gam) is always  n+1
+       gmat = cbind(gam[-(n+1)],gam[-1])
+       idvals = c(gmat %*% runif(2))    ## hash coding for unique pairs
+       gpinds = match(idvals, unique(idvals))
+     ## output is a list of index-sets j corresponding to
+     ## G unique (gam[j],gam[j+1]) values      
+     ## Groups are now ordered by original order of sample obs
+       split(1:n, gpinds) }
+
+> unlist(GpCalcT(99, D=2))
+  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20 
+  1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20 
+ 21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38 391 392 
+ 21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  98 
+ 40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59 
+ 40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59 
+ 60  61  62  63  64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79 
+ 60  61  62  63  64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79 
+ 80  81  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98 
+ 80  81  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  99 
+
+> unlist(GpCalcT(99,D=1))
+ 11  12  21  22  31  32  41  42  51  52  61  62  71  72  81  82  91  92 101 102 
+  1  79   2  80   3  81   4  82   5  83   6  84   7  85   8  86   9  87  10  88 
+111 112 121 122 131 132 141 142 151 152 161 162 171 172 181 182 191 192 201 202 
+ 11  89  12  90  13  91  14  92  15  93  16  94  17  95  18  96  19  97  20  98 
+211 212  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39 
+ 21  99  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39 
+ 40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59 
+ 40  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59 
+ 60  61  62  63  64  65  66  67  68  69  70  71  72  73  74  75  76  77  78 
+ 60  61  62  63  64  65  66  67  68  69  70  71  72  73  74  75  76  77  78 
+
+## LOOKS GOOD NOW !!

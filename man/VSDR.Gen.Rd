@@ -9,8 +9,8 @@ VSDR.Gen(parmlst, permarr)
 \arguments{
 \item{parmlst}{list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.}
 
-\item{permarr}{A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.}
+\item{permarr}{A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.}
 }
 \description{
-Preferred for speed. Similar to VSDRbias but is built to run faster for larger n.
+Preferred for speed. Equivalent to VSDRbias but is built to run faster for larger n. For the same inputs, matches exactly with \code{VSDR.exp} and \code{VSDRbias}.
 }

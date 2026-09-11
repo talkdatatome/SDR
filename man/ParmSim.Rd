@@ -7,10 +7,10 @@
 ParmSim()
 }
 \value{
-a parmlst with components ready to use in other functions
+an instance of \code{parmlst}, which is defined under function \code{PermRelBias}.
 }
 \description{
-A convenience function to generate somewhat random parmlsts for use in demonstration functions
+A convenience function to generate instances of \code{parmlsts}, defined under \code{PermRelBias}, for use in demonstration functions
 }
 \examples{
 p <- ParmSim()

@@ -16,10 +16,10 @@ Mcalc(n, m = 78, D = 1, permarr = PrmArr0[, 1:D])
 \item{permarr}{A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.}
 }
 \value{
-Returns a matrix with rows consisting of three elements, an index-pair from 1:n along with the entry for M, for all index-pairs with non-zero entries.
+Returns a matrix with rows consisting of a vector with 3 entries, an index-pair from 1:n along with the entry for M, as defined in formula 11 of the paper, for all index-pairs with non-zero entries.
 }
 \description{
-Calculates sparse representation of M matrix for all choices of m, D, and n.
+Calculates sparse representation of M matrix for all choices of m, D, and n. The prmarr argument of Mcalc uses permutation columns all indexed 1:m, which is why the default is PrmArr0.
 }
 \examples{
 mcalc_out <- Mcalc(200)

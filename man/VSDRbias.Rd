@@ -9,8 +9,8 @@ VSDRbias(parmlst, permarr)
 \arguments{
 \item{parmlst}{list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.}
 
-\item{permarr}{A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.}
+\item{permarr}{A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.}
 }
 \description{
-Calculates the expected variance of SDR under stratified SRSWOR for all combinations of m, D, and sample size, n.
+Calculates the expected variance of SDR under stratified SRSWOR for all combinations of m, D, and sample size, n. This version does its own conversion of permarr to have indices 1:m, but is otherwise slow when n is large. For the same inputs, matches exactly with \code{VSDR.exp} and \code{VSDR.Gen}.
 }

@@ -3,12 +3,9 @@
 \docType{data}
 \name{PrmArr0}
 \alias{PrmArr0}
-\title{PrmArr0 - Permutation Array used for default values}
+\title{PrmArr0 - Permutation Array used for defaults}
 \format{
-Similar to \code{PermArr}, a matrix with 78 rows and 10 columns. The first column is a subset of possible rows from the Hadamard matrix. In this case, the first column is \code{1:78}. Each additional column a permutation of the first column.
-}
-\source{
-From Slud and Trudell.
+Similar to \code{PermArr}, a matrix with 78 rows and 10 columns. The indices are simply mapped from 2:40,42:80 to 1:39,42:80.
 }
 \usage{
 PrmArr0

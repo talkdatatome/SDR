@@ -6,10 +6,23 @@
 \alias{SDR}
 \title{SDR: Formulas for Successive Difference Replication Under SRSWOR.}
 \description{
-This package offers formulas for evaluating bias and variance of Successive Difference Replication under stratified simple random sampling without replacement. The D-cycling definitions, groups of sample units sharing the same weight-replicate factors, matrix M defining SDR-variance-estimator as a quadratic form, and various formulas, can all be found in in the main manuscript.
+This package offers formulas for evaluating bias and variance of Successive Difference Replication under stratified simple random sampling without replacement. The D-cycling definitions, groups of sample units sharing the same weight-replicate factors, matrix M defining SDR-variance-estimator as a quadratic form, and various formulas, can all be found in the main manuscript.
 }
+\section{Notation}{
+\tabular{ll}{
+   symbol/notation \tab description \cr
+   H \tab Total number of stratum in population \cr
+   h \tab index given for a particular stratum \cr
+   Nh \tab Stratum total population for stratum h \cr
+   nh \tab Sample size for stratum h \cr
+   muh \tab Superpopulation parameter mean for stratum h \cr
+   sigmah \tab Superpopulation parameter standard deviation for stratum h \cr
+   alphah \tab Domain superpopulation mean for stratum h \cr
+}
+}
+
 \references{
-Slud, E. & Trudell, T. (2026). SDR Variance Estimates in Small Domains TODO
+Slud, E., & Trudell, T. (2026). SDR Variance Estimates in Small Domains. arXiv preprint arXiv:2608.17353. doi:10.48550/arXiv.2608.17353
 }
 \author{
 \strong{Maintainer}: Tim Trudell \email{timtrudell@gmail.com}

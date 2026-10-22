@@ -1,7 +1,9 @@
-#' SDR: Formulas for Successive Difference Replication Under SRSWOR.
+#' SDR: Formulas for Successive Difference Replication Under SRSWOR
 #'
 #' @description
 #' This package offers formulas for evaluating bias and variance of Successive Difference Replication under stratified simple random sampling without replacement. The D-cycling definitions, groups of sample units sharing the same weight-replicate factors, matrix M defining SDR-variance-estimator as a quadratic form, and various formulas, can all be found in the main manuscript.
+#'
+#' Additional examples can be found in the `SDRpkg.RLog` file, either in the inst/ folder of the SDR package or within R via `system.file("SDRpkg.RLog", package="SDR")` after package installation.
 #' 
 #' @section Notation:
 #'

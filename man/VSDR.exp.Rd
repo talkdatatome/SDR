@@ -12,6 +12,14 @@ VSDR.exp(parmlst, permarr)
 
 \item{permarr}{A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.}
 }
+\value{
+A list with components
+\itemize{
+\item \code{Vtru} - true design variance of the estimated domain total divided by \eqn{N}, i.e. \eqn{Var(\hat{Y}_D)/N^2}.
+\item \code{EVSDR} - expected value of the SDR variance estimator, on the same \eqn{1/N^2} scale as \code{Vtru}.
+\item \code{RelBias} - relative bias, \code{EVSDR/Vtru - 1}.
+}
+}
 \description{
 Function to calculate variance of SDR under stratified SRSWOR.
 Written for clarity. If speed for larger n is an issue, use \code{VSDR.Gen}. For the same inputs, matches exactly with \code{VSDR.Gen} and \code{VSDRbias}.

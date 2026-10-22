@@ -7,12 +7,20 @@
 ParmSim()
 }
 \value{
-an instance of \code{parmlst}, which is defined under function \code{PermRelBias}.
+an instance of \code{parmlst}, which is defined under function \code{PermRelBias}. Consists of a list with 5 named components all of length equal to the number of strata, H:
+\itemize{
+\item Nh - vector of stratum population sizes
+\item nh - vector of stratum sample sizes
+\item muh - vector of superpopulation expected stratum means
+\item sigmah - vector of superpopulation expected stratum standard deviations
+\item alphah - vector of superpopulation expected stratum domain share
+}
 }
 \description{
 A convenience function to generate instances of \code{parmlsts}, defined under \code{PermRelBias}, for use in demonstration functions
 }
 \examples{
-p <- ParmSim()
-print(p)
+tmp <- ParmSim()
+c(N=sum(tmp$Nh), n=sum(tmp$nh))
+round(rbind(mu=tmp$muh, sig=tmp$sigmah, alpha=tmp$alphah), 3)
 }

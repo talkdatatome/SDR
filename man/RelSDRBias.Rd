@@ -10,7 +10,7 @@ RelSDRBias(parmlst)
 \item{parmlst}{list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.}
 }
 \value{
-A list with relative bias, the true variance, and the original parameter list.
+A list with the relative bias \code{RelBias} (bias of the expected SDR variance divided by \code{Vtru}), the true variance \code{Vtru} (normalized by \eqn{N^2}, as in \code{VSDR.exp}), and the original parameter list.
 }
 \description{
 The most basic function implementing the expectation formula in Section 4, applicable to stratified SRS sampling from a stratified iid superpopulation, with n <= m. If used with n > m, corresponds to R >= n, which does not give a valid result even for D==1.

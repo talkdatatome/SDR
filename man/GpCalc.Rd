@@ -2,9 +2,9 @@
 % Please edit documentation in R/functions.R
 \name{GpCalc}
 \alias{GpCalc}
-\title{A function that defines a list of G groups associated with unique gamma-pairs}
+\title{A function that defines a list of indices G groups within a sample 1:n corresponding to unique replicate factors for SDR with m labels and D cycles.}
 \usage{
-GpCalc(n, m = 78, D = 1, permarr = PrmArr0[, 1:D, drop = F])
+GpCalc(n, m = 78, D = 1, permarr = PrmArr0[, 1:D, drop = FALSE])
 }
 \arguments{
 \item{n}{Total Sample Size}
@@ -22,8 +22,10 @@ An ordered list of groups, ordered by the earliest index in the group from the o
 Illustrates how different D cycling choices, replicate weight-factor values and sample sizes can lead to different group sizes when cases are grouped by common factor values.
 }
 \examples{
-x <- GpCalc(78*3, D=3)
-print(length(x))
-print(x[76:78])
-print(x[[length(x)]])
+aux <- GpCalc(200, D=3) # output consists of numbers 1:200 split into 198 groups
+setdiff(1:200, unlist(aux)) # integer(0)
+table(sapply(aux, length))
+aux[which(sapply(aux, length) > 1)]
+aux2 <- GpCalc(200, 2)
+table(sapply(aux2, length)) # now with 78 groups
 }

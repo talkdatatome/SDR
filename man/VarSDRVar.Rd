@@ -4,7 +4,7 @@
 \alias{VarSDRVar}
 \title{Calculates correct variance of VSDR variance-estimate components}
 \usage{
-VarSDRVar(n, m = 78, D = 1, permarr = PrmArr0[, 1:D, drop = F])
+VarSDRVar(n, m = 78, D = 1, permarr = PrmArr0[, 1:D, drop = FALSE])
 }
 \arguments{
 \item{n}{total sample size}
@@ -16,8 +16,8 @@ VarSDRVar(n, m = 78, D = 1, permarr = PrmArr0[, 1:D, drop = F])
 \item{permarr}{A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.}
 }
 \value{
-A list with vectors Coef and Trm. The n^2 times variance of the SDR variance estimator is \code{(1/n^2)*Coef[1]*mu4 + Coef[2]*mu3*mu + Coef[3]*(sig*mu)^2+Coef[4]*sig^4}.
+A list with vectors Coef and Trm. The product of n^2 times the variance of the SDR variance estimator of \eqn{\hat{Y}/N} is \eqn{(1/n^2)*Coef[1]*\mu_4 + Coef[2]*\mu_3*\mu + Coef[3]*(\sigma*\mu)^2+Coef[4]*\sigma^4}.
 }
 \description{
-For general m, D, and n, calculates coefficients to calculate correct variance for VSDR under simple random sampling from an i.i.d. superpopulation having a general mean, variance and 3rd and 4th central moments. The output is not the actual variance but rather (n/N)^4 times a vector Coef of 4 coefficients, respectively, of mu4, mu\emph{mu3, (mu}sig)^2, and mu^4, which add up to the variance.
+For general m, D, and n, calculates coefficients to calculate correct variance for VSDR under simple random sampling from an i.i.d. superpopulation having a general mean, variance and 3rd and 4th central moments. The output is not the actual variance but rather \eqn{(n/N)^4} times a vector Coef of 4 coefficients, respectively, of \eqn{\mu_4}, \eqn{\mu\cdot \mu_3}, \eqn{(\mu\cdot \sigma)^2}, and \eqn{\sigma^4}, which add up to the variance.
 }

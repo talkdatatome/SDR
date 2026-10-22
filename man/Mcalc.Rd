@@ -4,7 +4,7 @@
 \alias{Mcalc}
 \title{Utility program to calculate the sparse representation of the M matrix}
 \usage{
-Mcalc(n, m = 78, D = 1, permarr = PrmArr0[, 1:D])
+Mcalc(n, m = 78, D = 1, permarr = PrmArr0[, 1:D, drop = FALSE])
 }
 \arguments{
 \item{n}{Total Sample Size}
@@ -22,7 +22,8 @@ Returns a matrix with rows consisting of a vector with 3 entries, an index-pair 
 Calculates sparse representation of M matrix for all choices of m, D, and n. The prmarr argument of Mcalc uses permutation columns all indexed 1:m, which is why the default is PrmArr0.
 }
 \examples{
-mcalc_out <- Mcalc(200)
+mcalc_out <- Mcalc(200, D=2)
+dim(mcalc_out)
 Mmat = array(0, dim=c(200, 200))
 Mmat[mcalc_out[,1:2]] = mcalc_out[,3]
 Mmat

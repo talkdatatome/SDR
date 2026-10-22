@@ -4,26 +4,38 @@
 \alias{PermSDR}
 \title{Calculates SDR variance estimate based on a given stratum permutation}
 \usage{
-PermSDR(ywt, Mmat, nhvec, Str.perm = 1:length(nhvec))
+PermSDR(ywt, Mmat, nhvec, Str.perm = seq_along(nhvec), N = NULL)
 }
 \arguments{
-\item{ywt}{A vector of stratum design weighted outcome values. Length is equal to number of stratum.}
+\item{ywt}{Numeric vector of design-weighted outcome values \eqn{w_j y_j} (e.g. \eqn{(N_h/n_h) y_j} under stratified SRS), of length \eqn{n} = \code{sum(nhvec)}, with each stratum's values in a contiguous block, strata in their original order.}
 
-\item{Mmat}{An length(ywt) by 3 matrix representing the non-zero indices of the SDR matrix given a D cycling configuration. Can use output from \code{Mcalc}.}
+\item{Mmat}{Three-column matrix giving the row index, column index and value of each non-zero entry of the \eqn{n \times n} SDR matrix M for the chosen m and D, as returned by \code{Mcalc(n, m, D, permarr)}.}
 
-\item{nhvec}{vector representing the size of each stratum}
+\item{nhvec}{Vector of stratum sample sizes \eqn{n_h}.}
 
-\item{Str.perm}{an integer vector that provides the permutation order to use in calculation}
+\item{Str.perm}{Integer vector, a permutation of \code{1:length(nhvec)}, giving the order in which the strata are placed before M is applied. Defaults to the original order.}
+
+\item{N}{Population size \eqn{N} used for normalization. If \code{NULL} (the default), \code{VarYbar} is returned as \code{NA}.}
 }
 \value{
-Total estimate under permutation given in Str.perm.
+A list with components
+\itemize{
+\item \code{VarYtot} - SDR variance estimate for the estimated total \eqn{\hat{Y}} under the stratum order \code{Str.perm}.
+\item \code{VarYbar} - \code{VarYtot / N^2}, the SDR variance estimate for \eqn{\hat{Y}/N}, on the same scale as \code{Vtru} and \code{EVSDR} returned by \code{VSDR.exp}, \code{VSDR.Gen} and \code{VSDRbias}. \code{NA} if \code{N} is not supplied.
+}
 }
 \description{
-Given weighted y vector and a sparse representation of the non-zero entries of the SDR matrix, and an optional stratum permutation, generate the SDR variance estimate.
-Function uses Mcalc to calculate the correct VSDR estiamte; m, D are not direct arguments; but the M matrix and weighted ywt vector are (not necessarily usning strata SRS weights but there are additional arguments for H-vectors nh and Str.perm, a permutation of the stratum numbers, in case the VSDR evaluation is to be done with a specific input permutation of strata.
+Given a vector of design-weighted outcome values and the sparse representation of the non-zero entries of the SDR matrix M (from \code{Mcalc}), computes the SDR variance estimate, optionally after reordering the strata according to \code{Str.perm}. The order of observations within each stratum is kept fixed. The number of replicates m and the cycling parameter D enter only through \code{Mmat}.
+
+The other variance functions in this package (\code{VSDR.exp}, \code{VSDR.Gen}, \code{VSDRbias}, \code{RelSDRBias}, \code{PermRelBias}) report variances normalized by \eqn{N^2}, i.e. for \eqn{\hat{Y}/N}, as in the formulas of the paper. Because \code{ywt} carries unnormalized design weights, the raw SDR quantity here is the variance estimate for the total \eqn{\hat{Y}}. \code{PermSDR} therefore returns both: \code{VarYtot} (unnormalized) and \code{VarYbar} (divided by \eqn{N^2}), the latter directly comparable with \code{Vtru} and \code{EVSDR} from the other functions.
 }
 \examples{
-nh <- c(3,5,7,9)
-ywt <- do.call(c, lapply(nh, rnorm, mean=5, sd=1))
-print(PermSDR(ywt, Mcalc(sum(nh)), nhvec=nh))
+nh <- c(3, 5, 7, 9)
+Nh <- c(300, 500, 700, 900)
+y <- unlist(lapply(nh, stats::rnorm, mean = 5, sd = 1))
+ywt <- rep(Nh/nh, nh) * y          # design-weighted values
+Mmat <- Mcalc(sum(nh))
+PermSDR(ywt, Mmat, nhvec = nh, N = sum(Nh))
+# same sample, strata placed in a different order
+PermSDR(ywt, Mmat, nhvec = nh, Str.perm = c(2, 4, 1, 3), N = sum(Nh))
 }

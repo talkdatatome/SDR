@@ -7,14 +7,14 @@
 PermRelBias(parmlst, maxRB = 0.6, maxiter = 50000)
 }
 \arguments{
-\item{parmlst}{list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.}
+\item{parmlst}{list of parameter vectors for each stratum. Required order is stratum size vector (Nh), sample size vector (nh), stratum mean vector (muh), stratum level standard deviation vector (sigmah), and vector of stratum level domain percentages (alphah).}
 
 \item{maxRB}{upper-bound of relative bias for tabulation}
 
-\item{maxiter}{if number of strata is above 10, set maximum sampled permutations.}
+\item{maxiter}{if number of strata is above 10, set maximum number of Monte Carlo permutations to maxiter value.}
 }
 \value{
-list of relative bias prior to permutation, a count tabulation of permutation bins, the true variance, expected domain sample size, finally a vector of the permutation relative bias.
+list of relative bias of SDR variance in the original strata, a count tabulation of permutation bins, the true variance \code{Vtru} (normalized by \eqn{N^2}, as in \code{VSDR.exp}), expected domain sample size, finally a vector of the permutation relative bias.
 }
 \description{
 Implementing the same basic formula as in \code{RelSDRBias} but adds tabulating results over multiple (either all or a random subset) permutations of strata. If maxiter set to 1, then should be identical to \code{RelSDRBias}.

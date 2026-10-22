@@ -4,9 +4,11 @@
 \name{SDR}
 \alias{SDR-package}
 \alias{SDR}
-\title{SDR: Formulas for Successive Difference Replication Under SRSWOR.}
+\title{SDR: Formulas for Successive Difference Replication Under SRSWOR}
 \description{
 This package offers formulas for evaluating bias and variance of Successive Difference Replication under stratified simple random sampling without replacement. The D-cycling definitions, groups of sample units sharing the same weight-replicate factors, matrix M defining SDR-variance-estimator as a quadratic form, and various formulas, can all be found in the main manuscript.
+
+Additional examples can be found in the \code{SDRpkg.RLog} file, either in the inst/ folder of the SDR package or within R via \code{system.file("SDRpkg.RLog", package="SDR")} after package installation.
 }
 \section{Notation}{
 \tabular{ll}{

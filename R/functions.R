@@ -9,12 +9,13 @@
 #' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
 #' @returns Returns a matrix with rows consisting of a vector with 3 entries, an index-pair from 1:n along with the entry for M, as defined in formula 11 of the paper, for all index-pairs with non-zero entries.
 #' @examples
-#' mcalc_out <- Mcalc(200)
+#' mcalc_out <- Mcalc(200, D=2)
+#' dim(mcalc_out)
 #' Mmat = array(0, dim=c(200, 200))
 #' Mmat[mcalc_out[,1:2]] = mcalc_out[,3]
 #' Mmat
 #' @export 
-Mcalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D]) {
+Mcalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=FALSE]) {
   ## matrix consisting of all nonzero values j, j', b(j,j')
   ## for j, j' in 1:n and b(j,j') the curly-bracket value in (16)
   ## permarr is m x D matrix of permutations used in D-cycling with D>1
@@ -41,10 +42,10 @@ Mcalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D]) {
 #' @description
 #' Implementing the same basic formula as in `RelSDRBias` but adds tabulating results over multiple (either all or a random subset) permutations of strata. If maxiter set to 1, then should be identical to `RelSDRBias`.
 #'
-#' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
+#' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector (Nh), sample size vector (nh), stratum mean vector (muh), stratum level standard deviation vector (sigmah), and vector of stratum level domain percentages (alphah).
 #' @param maxRB upper-bound of relative bias for tabulation
-#' @param maxiter if number of strata is above 10, set maximum sampled permutations.
-#' @returns list of relative bias prior to permutation, a count tabulation of permutation bins, the true variance, expected domain sample size, finally a vector of the permutation relative bias.
+#' @param maxiter if number of strata is above 10, set maximum number of Monte Carlo permutations to maxiter value.
+#' @returns list of relative bias of SDR variance in the original strata, a count tabulation of permutation bins, the true variance `Vtru` (normalized by \eqn{N^2}, as in `VSDR.exp`), expected domain sample size, finally a vector of the permutation relative bias.
 #' @examples
 #' parmlst <- list(Nh=rep(1000, 5), 
 #'                 nh=rep(25, 5),
@@ -96,45 +97,60 @@ function(parmlst, maxRB=0.6, maxiter=5e4) {
 #' Calculates SDR variance estimate based on a given stratum permutation
 #' 
 #' @description
-#' Given weighted y vector and a sparse representation of the non-zero entries of the SDR matrix, and an optional stratum permutation, generate the SDR variance estimate.
-#' Function uses Mcalc to calculate the correct VSDR estiamte; m, D are not direct arguments; but the M matrix and weighted ywt vector are (not necessarily usning strata SRS weights but there are additional arguments for H-vectors nh and Str.perm, a permutation of the stratum numbers, in case the VSDR evaluation is to be done with a specific input permutation of strata.
-#' 
-#' @param ywt A vector of stratum design weighted outcome values. Length is equal to number of stratum.
-#' @param Mmat An length(ywt) by 3 matrix representing the non-zero indices of the SDR matrix given a D cycling configuration. Can use output from `Mcalc`.
-#' @param nhvec vector representing the size of each stratum
-#' @param Str.perm an integer vector that provides the permutation order to use in calculation
-#' @returns Total estimate under permutation given in Str.perm.
+#' Given a vector of design-weighted outcome values and the sparse representation of the non-zero entries of the SDR matrix M (from `Mcalc`), computes the SDR variance estimate, optionally after reordering the strata according to `Str.perm`. The order of observations within each stratum is kept fixed. The number of replicates m and the cycling parameter D enter only through `Mmat`.
+#'
+#' The other variance functions in this package (`VSDR.exp`, `VSDR.Gen`, `VSDRbias`, `RelSDRBias`, `PermRelBias`) report variances normalized by \eqn{N^2}, i.e. for \eqn{\hat{Y}/N}, as in the formulas of the paper. Because `ywt` carries unnormalized design weights, the raw SDR quantity here is the variance estimate for the total \eqn{\hat{Y}}. `PermSDR` therefore returns both: `VarYtot` (unnormalized) and `VarYbar` (divided by \eqn{N^2}), the latter directly comparable with `Vtru` and `EVSDR` from the other functions.
+#'
+#' @param ywt Numeric vector of design-weighted outcome values \eqn{w_j y_j} (e.g. \eqn{(N_h/n_h) y_j} under stratified SRS), of length \eqn{n} = `sum(nhvec)`, with each stratum's values in a contiguous block, strata in their original order.
+#' @param Mmat Three-column matrix giving the row index, column index and value of each non-zero entry of the \eqn{n \times n} SDR matrix M for the chosen m and D, as returned by `Mcalc(n, m, D, permarr)`.
+#' @param nhvec Vector of stratum sample sizes \eqn{n_h}.
+#' @param Str.perm Integer vector, a permutation of `1:length(nhvec)`, giving the order in which the strata are placed before M is applied. Defaults to the original order.
+#' @param N Population size \eqn{N} used for normalization. If `NULL` (the default), `VarYbar` is returned as `NA`.
+#' @returns A list with components
+#'   * `VarYtot` - SDR variance estimate for the estimated total \eqn{\hat{Y}} under the stratum order `Str.perm`.
+#'   * `VarYbar` - `VarYtot / N^2`, the SDR variance estimate for \eqn{\hat{Y}/N}, on the same scale as `Vtru` and `EVSDR` returned by `VSDR.exp`, `VSDR.Gen` and `VSDRbias`. `NA` if `N` is not supplied.
 #' @examples
-#' nh <- c(3,5,7,9)
-#' ywt <- do.call(c, lapply(nh, rnorm, mean=5, sd=1))
-#' print(PermSDR(ywt, Mcalc(sum(nh)), nhvec=nh))
+#' nh <- c(3, 5, 7, 9)
+#' Nh <- c(300, 500, 700, 900)
+#' y <- unlist(lapply(nh, stats::rnorm, mean = 5, sd = 1))
+#' ywt <- rep(Nh/nh, nh) * y          # design-weighted values
+#' Mmat <- Mcalc(sum(nh))
+#' PermSDR(ywt, Mmat, nhvec = nh, N = sum(Nh))
+#' # same sample, strata placed in a different order
+#' PermSDR(ywt, Mmat, nhvec = nh, Str.perm = c(2, 4, 1, 3), N = sum(Nh))
 #' @export
-PermSDR <- function(ywt, Mmat, nhvec, Str.perm = 1:length(nhvec)) {                    
+PermSDR <- function(ywt, Mmat, nhvec, Str.perm = seq_along(nhvec), N = NULL) {
   ### calculates SDR var estimate based on stratum permutation,
   ##  fixing order of y values within stratum
   ## NB Assumes ywt values appear in blocks of size nhvec[h]
   ## Mmat is sparse-matrix representation found in Mcalc
-  H = length(Str.perm)        
+  n = sum(nhvec)
+  H = length(nhvec)
+  if(length(ywt) != n)
+    stop("length(ywt) must equal sum(nhvec)")
+  if(max(Mmat[,1:2]) != n)
+    stop("Mmat does not match the sample size; build it with Mcalc(sum(nhvec), ...)")
+  if(length(Str.perm) != H || !setequal(Str.perm, seq_len(H)))
+    stop("Str.perm must be a permutation of 1:length(nhvec)")
   cumnh = c(0,cumsum(nhvec))
-  ywprm = NULL
-  for(h in 1:H) ywprm = c(ywprm, ywt[cumnh[Str.perm[h]] + 
-                                       (1:nhvec[Str.perm[h]])])
+  ywprm = ywt[unlist(lapply(Str.perm, function(h) cumnh[h] + seq_len(nhvec[h])))]
   ## now use Mmat to find  ysdr; recall Yest does not use SDR info
-  Ysdr = sum(ywprm[Mmat[,1]]*ywprm[Mmat[,2]]*Mmat[,3])
-  Ysdr   }
+  VarYtot = sum(ywprm[Mmat[,1]]*ywprm[Mmat[,2]]*Mmat[,3])
+  VarYbar = if(is.null(N)) NA_real_ else VarYtot/N^2
+  list(VarYtot = VarYtot, VarYbar = VarYbar)  }
 
 
 #' Calculates correct variance of VSDR variance-estimate components
 #'
-#' @description For general m, D, and n, calculates coefficients to calculate correct variance for VSDR under simple random sampling from an i.i.d. superpopulation having a general mean, variance and 3rd and 4th central moments. The output is not the actual variance but rather (n/N)^4 times a vector Coef of 4 coefficients, respectively, of mu4, mu*mu3, (mu*sig)^2, and mu^4, which add up to the variance. 
+#' @description For general m, D, and n, calculates coefficients to calculate correct variance for VSDR under simple random sampling from an i.i.d. superpopulation having a general mean, variance and 3rd and 4th central moments. The output is not the actual variance but rather \eqn{(n/N)^4} times a vector Coef of 4 coefficients, respectively, of \eqn{\mu_4}, \eqn{\mu\cdot \mu_3}, \eqn{(\mu\cdot \sigma)^2}, and \eqn{\sigma^4}, which add up to the variance. 
 #' 
 #' @param n total sample size
 #' @param m number of replicates used. Defaults to 78 assuming an 80 x 80 Hadamard matrix
 #' @param D D cycling parameter. Defaults to 1.
 #' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
-#' @returns A list with vectors Coef and Trm. The n^2 times variance of the SDR variance estimator is \code{(1/n^2)*Coef[1]*mu4 + Coef[2]*mu3*mu + Coef[3]*(sig*mu)^2+Coef[4]*sig^4}.
+#' @returns A list with vectors Coef and Trm. The product of n^2 times the variance of the SDR variance estimator of \eqn{\hat{Y}/N} is \eqn{(1/n^2)*Coef[1]*\mu_4 + Coef[2]*\mu_3*\mu + Coef[3]*(\sigma*\mu)^2+Coef[4]*\sigma^4}.
 #' @export
-VarSDRVar <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
+VarSDRVar <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=FALSE]) {
   ### begin by setting n x n Mmat matrix using Mcalc
   Mmat = Mcalc(n, m, D, permarr)
   ## calculate n* variance for SDR-var estimator 
@@ -176,6 +192,10 @@ VarSDRVar <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
 #' 
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
 #' @param permarr A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.
+#' @returns A list with components
+#'   * `Vtru` - true design variance of the estimated domain total divided by \eqn{N}, i.e. \eqn{Var(\hat{Y}_D)/N^2}.
+#'   * `EVSDR` - expected value of the SDR variance estimator, on the same \eqn{1/N^2} scale as `Vtru`.
+#'   * `RelBias` - relative bias, `EVSDR/Vtru - 1`.
 #' @export
 VSDR.exp <- function(parmlst, permarr) {
   ## NOTE parmlst has components in the order "Nh" "nh" "mean" "sig" "alpha"
@@ -203,7 +223,7 @@ VSDR.exp <- function(parmlst, permarr) {
   sampvec = rep(1:H, nh) 
   EVSDR = sum( (ph^2/nh)*alphh*(muh^2+sgsqh))
   Mmat = Mcalc(n,m,D,permarr)
-  MmatB = Mmat[ Mmat[,1] < Mmat[,2], ]
+  MmatB = Mmat[ Mmat[,1] < Mmat[,2], , drop=FALSE]
   SameHfac = rep(1,nrow(MmatB))
   ## indices in first 2 cols are 1:n, convert them to strata
   strmat = cbind(sampvec[MmatB[,1]],sampvec[MmatB[,2]])
@@ -221,6 +241,10 @@ VSDR.exp <- function(parmlst, permarr) {
 #' 
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
 #' @param permarr A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.
+#' @returns A list with components
+#'   * `Vtru` - true design variance of the estimated domain total divided by \eqn{N}, i.e. \eqn{Var(\hat{Y}_D)/N^2}.
+#'   * `EVSDR` - expected value of the SDR variance estimator, on the same \eqn{1/N^2} scale as `Vtru`.
+#'   * `RelBias` - relative bias, `EVSDR/Vtru - 1`.
 #' @export
 VSDR.Gen <- function(parmlst, permarr) {
   ## NOTE parmlst has components in the order "Nh" "nh" "mean" "sig" "alpha"
@@ -274,6 +298,10 @@ VSDR.Gen <- function(parmlst, permarr) {
 #'
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
 #' @param permarr A matrix of indices either 1:m or an m-element subset of 1:R, with dimensions m x D, each column being a permutation of the first column.
+#' @returns A list with components
+#'   * `Vtru` - true design variance of the estimated domain total divided by \eqn{N}, i.e. \eqn{Var(\hat{Y}_D)/N^2}.
+#'   * `EVSDR` - expected value of the SDR variance estimator, on the same \eqn{1/N^2} scale as `Vtru`.
+#'   * `RelBias` - relative bias, `EVSDR/Vtru - 1`.
 #' @export
 VSDRbias <- function(parmlst, permarr) {
   ## NOTE parmlst has components "Nh" "nh" "mean" "sig" "alpha"
@@ -321,7 +349,7 @@ VSDRbias <- function(parmlst, permarr) {
 #' @description The most basic function implementing the expectation formula in Section 4, applicable to stratified SRS sampling from a stratified iid superpopulation, with n <= m. If used with n > m, corresponds to R >= n, which does not give a valid result even for D==1.
 #'
 #' @param parmlst list of parameter vectors for each stratum. Required order is stratum size vector, sample size vector, stratum mean vector, stratum level standard deviation vector, and vector of stratum level domain percentages.
-#' @returns A list with relative bias, the true variance, and the original parameter list.
+#' @returns A list with the relative bias `RelBias` (bias of the expected SDR variance divided by `Vtru`), the true variance `Vtru` (normalized by \eqn{N^2}, as in `VSDR.exp`), and the original parameter list.
 #' @export
 RelSDRBias <- function(parmlst) {   ## the one to use when n <= m
        ## parmlst has components $Nh, $nh, $muh, $sigmah, $alphah
@@ -341,7 +369,7 @@ RelSDRBias <- function(parmlst) {   ## the one to use when n <= m
                      (1+((nh-1)*Nh/(nh^2*(Nh-1))))))/N )/Vtru
           list(RelBias=RelBias, Vtru=Vtru, parmlst=parmlst) }
 
-#' A function that defines a list of G groups associated with unique gamma-pairs
+#' A function that defines a list of indices G groups within a sample 1:n corresponding to unique replicate factors for SDR with m labels and D cycles.
 #' 
 #' @description Illustrates how different D cycling choices, replicate weight-factor values and sample sizes can lead to different group sizes when cases are grouped by common factor values.
 #' @param n Total Sample Size
@@ -350,12 +378,14 @@ RelSDRBias <- function(parmlst) {   ## the one to use when n <= m
 #' @param permarr A matrix of indices from 1 to m with dimensions m x D, each column being a permutation of the first column.
 #' @returns An ordered list of groups, ordered by the earliest index in the group from the original sample index order, with each list containing the indices 1 to n that in that group. 
 #' @examples
-#' x <- GpCalc(78*3, D=3)
-#' print(length(x))
-#' print(x[76:78])
-#' print(x[[length(x)]])
+#' aux <- GpCalc(200, D=3) # output consists of numbers 1:200 split into 198 groups
+#' setdiff(1:200, unlist(aux)) # integer(0)
+#' table(sapply(aux, length))
+#' aux[which(sapply(aux, length) > 1)]
+#' aux2 <- GpCalc(200, 2)
+#' table(sapply(aux2, length)) # now with 78 groups
 #' @export
-GpCalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
+GpCalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=FALSE]) {
      ## Splitting of observations 1:n into unique groups by
      ##   distinct pairs (gamma[j],gamma[j+1])
        gam = if(n<m) c(permarr[1:n,1],permarr[1,1]) else {
@@ -374,15 +404,21 @@ GpCalc <- function(n, m=78, D=1, permarr=PrmArr0[,1:D, drop=F]) {
 #' Generates random parameter list
 #' 
 #' @description A convenience function to generate instances of `parmlsts`, defined under `PermRelBias`, for use in demonstration functions
-#' @returns an instance of `parmlst`, which is defined under function `PermRelBias`.
+#' @returns an instance of `parmlst`, which is defined under function `PermRelBias`. Consists of a list with 5 named components all of length equal to the number of strata, H: 
+#'  * Nh - vector of stratum population sizes
+#'  * nh - vector of stratum sample sizes
+#'  * muh - vector of superpopulation expected stratum means
+#'  * sigmah - vector of superpopulation expected stratum standard deviations
+#' * alphah - vector of superpopulation expected stratum domain share
 #' @examples
-#' p <- ParmSim()
-#' print(p)
+#' tmp <- ParmSim()
+#' c(N=sum(tmp$Nh), n=sum(tmp$nh))
+#' round(rbind(mu=tmp$muh, sig=tmp$sigmah, alpha=tmp$alphah), 3)
 #' @export
 ParmSim <- function() {
        H = sample(5:15,1)
-       list(Nh = 1e4*sample(5:25, H, replace=T),
-         nh = sample(2:25, H, replace=T),
+       list(Nh = 1e4*sample(5:25, H, replace=TRUE),
+         nh = sample(2:25, H, replace=TRUE),
          muh = stats::rnorm(H),
          sigmah = stats::rgamma(H,3,3),
          alphah = runif(1, 0.5,0.8)*stats::rbeta(H,1,3)) }
